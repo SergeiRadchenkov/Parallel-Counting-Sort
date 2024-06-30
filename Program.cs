@@ -1,38 +1,76 @@
-﻿// Сортировка подсчётом
+﻿// Параллельная сортировка подсчётом
+
+const int THREADES_NUMBER = 4; // число потоков
+const int N = 1000; // размер массива
+object locker = new object();
 
 int[] array = {0, 2, 3, 2, 1, 5, 9, 1, 1, 2, 1, 3, 4, 6, 3, 1, 4, 8, 5, 3};
 
-void CountingSort(int[] inputArray)
+Random rand = new Random();
+int[] resSerial = new int[N].Select(r => rand.Next(0, 5)).ToArray();
+int[] resParalel = new int[N];
+
+Array.Copy(resSerial, resParalel, N);
+Console.WriteLine(string.Join(", ", resSerial));
+Console.WriteLine(string.Join(", ", resParalel));
+
+CountingSortExtended(resSerial);
+PrepareParallelCountingSort(resParalel);
+Console.WriteLine(EqualityMatrix(resSerial, resParalel));
+
+Console.WriteLine(string.Join(", ", resSerial));
+Console.WriteLine(string.Join(", ", resParalel));
+
+
+void PrepareParallelCountingSort(int[] inputArray)
 {
-    int[] counters = new int[10];
+    int max = inputArray.Max();
+    int min = inputArray.Min();
 
-    for (int i = 0; i < inputArray.Length; i++)
+    int offset = -min;
+    int[] counters = new int[max + offset + 1];
+
+    int eachThreadCalc = N / THREADES_NUMBER;
+    var threadsParall = new List<Thread>();
+
+    for (int i = 0; i < THREADES_NUMBER; i++)
     {
-        // counters[inputArray[i]]++;
-        int ourNumber = inputArray[i];
-        counters[ourNumber]++;
+        int startPos = i * eachThreadCalc;
+        int endPos = (i + 1) * eachThreadCalc;
+        if (i == THREADES_NUMBER - 1) endPos = N;
+        threadsParall.Add(new Thread(() => CountingSortParallel(inputArray, counters, offset, startPos, endPos)));
+        threadsParall[i].Start();
     }
-
+    foreach(var tread in threadsParall)
+    {
+        tread.Join();
+    }
     int index = 0;
     for (int i = 0; i < counters.Length; i++)
     {
         for (int j = 0; j < counters[i]; j++)
         {
-            inputArray[index] = i;
+            inputArray[index] = i - offset;
             index++;
         }
     }
 }
 
-CountingSort(array);
+void CountingSortParallel(int[] inputArray, int[] counters, int offset, int startPos, int endPos)
+{
+    for (int i = startPos; i < endPos; i++)
+    {
+        lock (locker)
+        {
+            counters[inputArray[i] + offset]++;
+        }
+    }
+}
 
-Console.WriteLine(string.Join(", ", array));
-
-int[] CountingSortExtended(int[] inputArray)
+void CountingSortExtended(int[] inputArray)
 {
     int max = inputArray.Max();
     int min = inputArray.Min();
-
 
     int offset = 0;
     if (min < 0)
@@ -40,7 +78,6 @@ int[] CountingSortExtended(int[] inputArray)
         offset = -min;
     };
 
-    int[] sortedArray = new int[inputArray.Length];
     int[] counters = new int[max + offset + 1];
 
     for (int i = 0; i < inputArray.Length; i++)
@@ -53,17 +90,18 @@ int[] CountingSortExtended(int[] inputArray)
     {
         for (int j = 0; j < counters[i]; j++)
         {
-            sortedArray[index] = i - offset;
+            inputArray[index] = i - offset;
             index++;
         }
     }
-    return sortedArray;
 }
 
-int[] array2 = {0, 2, 4, 10, 20, 5, 6, 1, 2};
-int[] sortedArray = CountingSortExtended(array2);
-Console.WriteLine(string.Join(", ", sortedArray));
-
-int[] array3 = {-10, -5, -9, 0, 2, 5, 1, 3, 1, 0, 1};
-int[] sortedArray2 = CountingSortExtended(array3);
-Console.WriteLine(string.Join(", ", sortedArray2));
+bool EqualityMatrix(int[] fmatrix, int[] smatrix)
+{
+    bool res = true;
+    for (int i = 0; i < N; i++)
+    {
+        res = res && (fmatrix[i] == smatrix[i]);
+    }
+    return res;
+}
