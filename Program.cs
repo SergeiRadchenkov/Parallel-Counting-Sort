@@ -4,8 +4,6 @@ const int THREADES_NUMBER = 4; // число потоков
 const int N = 1000; // размер массива
 object locker = new object();
 
-int[] array = {0, 2, 3, 2, 1, 5, 9, 1, 1, 2, 1, 3, 4, 6, 3, 1, 4, 8, 5, 3};
-
 Random rand = new Random();
 int[] resSerial = new int[N].Select(r => rand.Next(0, 5)).ToArray();
 int[] resParalel = new int[N];
